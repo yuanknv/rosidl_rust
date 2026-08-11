@@ -1,0 +1,16 @@
+Package: ros-jazzy-rosidl-generator-rs
+Architecture: amd64
+Version: 0.5.0-0~2026.08.11.12.50+g4adee4f29987
+Priority: optional
+Section: misc
+Maintainer: Esteve Fernandez <esteve@apache.org>
+Installed-Size: 140
+Depends: ros-jazzy-ament-cmake, ros-jazzy-ros-environment, ros-jazzy-rosidl-generator-c, ros-jazzy-rosidl-parser, ros-jazzy-rosidl-pycommon, ros-jazzy-rosidl-typesupport-c, ros-jazzy-rosidl-typesupport-interface
+Filename: ./ros-jazzy-rosidl-generator-rs_0.5.0-0~2026.08.11.12.50+g4adee4f29987_amd64.deb
+Size: 24788
+MD5sum: 68df3f235a38055a855cd7f471b08651
+SHA1: 46196cac1acaa1d58df37e253db18c12f69dec4d
+SHA256: bf3e267ddb895fdeb0e6b1ee03398e155f18ef1fe1a5ddcbbfdcf165d42e7ae5
+SHA512: 0a7ec13fa1aee6e53084b8afed6b6b63591661c0dece5e0d6956afa40e825f3422a1956e0e4d9ff9138f360bf2fa422dd63055366b91428389c133c4350f4817
+Description: Generate the ROS interfaces in Rust.
+
