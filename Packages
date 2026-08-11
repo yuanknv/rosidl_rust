@@ -1,0 +1,16 @@
+Package: ros-lyrical-rosidl-generator-rs
+Architecture: amd64
+Version: 0.5.0-0~2026.08.11.12.50+g4adee4f29987
+Priority: optional
+Section: misc
+Maintainer: Esteve Fernandez <esteve@apache.org>
+Installed-Size: 141
+Depends: ros-lyrical-ament-cmake, ros-lyrical-ros-environment, ros-lyrical-rosidl-generator-c, ros-lyrical-rosidl-parser, ros-lyrical-rosidl-pycommon, ros-lyrical-rosidl-typesupport-c, ros-lyrical-rosidl-typesupport-interface
+Filename: ./ros-lyrical-rosidl-generator-rs_0.5.0-0~2026.08.11.12.50+g4adee4f29987_amd64.deb
+Size: 23232
+MD5sum: 7c170fa7c6753fbe53966aacf8bfc17e
+SHA1: 42ed549f3c80e0f4508b6ed880f940b3c8ff86f7
+SHA256: 980b65a6d005c46f6c03c2ffd7b92bb929950138d1b06e904ba423c7f09c5296
+SHA512: f999b1b3796516a924267cc022c8e28a1bbf20a98cfb1cd7aa7c826b1fffadb8bb7207d5252f6ed8595bf3a4afbfb3a5d6fb323ed896740e150ab4594cb4d90d
+Description: Generate the ROS interfaces in Rust.
+
