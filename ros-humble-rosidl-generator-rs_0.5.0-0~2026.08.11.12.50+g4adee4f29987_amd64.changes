@@ -1,0 +1,30 @@
+Format: 1.8
+Date: Mon, 10 Aug 2026 00:00:00 -0000
+Source: ros-humble-rosidl-generator-rs
+Binary: ros-humble-rosidl-generator-rs
+Built-For-Profiles: noudeb
+Architecture: amd64
+Version: 0.5.0-0~2026.08.11.12.50+g4adee4f29987
+Distribution: jammy
+Urgency: high
+Maintainer: Esteve Fernandez <esteve@apache.org>
+Changed-By: Esteve Fernandez <esteve@apache.org>
+Description:
+ ros-humble-rosidl-generator-rs - Generate the ROS interfaces in Rust.
+Changes:
+ ros-humble-rosidl-generator-rs (0.5.0-0~2026.08.11.12.50+g4adee4f29987) jammy; urgency=high
+ .
+   * fix(generator): do not register generated crates in the rust_packages index
+   * fix(generator): make Cargo.toml dependencies deterministic (#28)
+   * fix(generator): allow IDL files outside standard folders
+   * perf(generator): use memcpy paths for primitive sequence conversion (#26)
+   * Contributors: Esteve Fernandez, Mathieu David
+Checksums-Sha1:
+ 53e36731c2691c872ec6e87897cc0a11663e5494 12384 ros-humble-rosidl-generator-rs_0.5.0-0~2026.08.11.12.50+g4adee4f29987_amd64.buildinfo
+ a53028eb25d73fbc57ce135fa505bcf6f65675d8 25148 ros-humble-rosidl-generator-rs_0.5.0-0~2026.08.11.12.50+g4adee4f29987_amd64.deb
+Checksums-Sha256:
+ 5844b5860f8056d50e7844d456151901d5de6eb6698e54c37560a7a11d63772b 12384 ros-humble-rosidl-generator-rs_0.5.0-0~2026.08.11.12.50+g4adee4f29987_amd64.buildinfo
+ e4360128c2993e65c7650ead53af6234360bcedacba1645a6b60fbde8c4bb15a 25148 ros-humble-rosidl-generator-rs_0.5.0-0~2026.08.11.12.50+g4adee4f29987_amd64.deb
+Files:
+ 95b6d27670bc650617b9d518c2d4f702 12384 misc optional ros-humble-rosidl-generator-rs_0.5.0-0~2026.08.11.12.50+g4adee4f29987_amd64.buildinfo
+ 768a424fa8744824fc1e1bafe0279864 25148 misc optional ros-humble-rosidl-generator-rs_0.5.0-0~2026.08.11.12.50+g4adee4f29987_amd64.deb
