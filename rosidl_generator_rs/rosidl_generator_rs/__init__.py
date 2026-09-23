@@ -134,6 +134,7 @@ def _expand_namespace_templates(template_dir, output_dir, namespace, spec_kind, 
         raise ValueError(f'Unknown spec kind {spec_kind}')
 
     namespace_data = data.copy()
+    namespace_data['namespace'] = namespace
     namespace_data[template_specs] = [(namespace, spec) for spec in specs]
 
     for template_file, generated_filenames in mappings.items():
@@ -144,6 +145,15 @@ def _expand_namespace_templates(template_dir, output_dir, namespace, spec_kind, 
                 namespace_data.copy(),
                 generated_file,
                 minimum_timestamp=latest_target_timestamp)
+
+
+    buffer_data = namespace_data.copy()
+    buffer_data['representation'] = 'buffer'
+    rosidl_pycommon.expand_template(
+        os.path.join(template_dir, f'{spec_kind}.rs.em'),
+        buffer_data,
+        os.path.join(output_dir, f'rust/src/{namespace}/buffer.rs'),
+        minimum_timestamp=latest_target_timestamp)
 
 
 def generate_rs(generator_arguments_file, typesupport_impls):
@@ -194,6 +204,10 @@ def generate_rs(generator_arguments_file, typesupport_impls):
             'Template file %s not found' % template_file
 
     data = {
+        'representation': 'cpu',
+        'get_public_rs_type': get_public_rs_type,
+        'public_conversion': public_conversion,
+        'cpu_normalization': cpu_normalization,
         'pre_field_serde': pre_field_serde,
         'get_rs_name': get_rs_name,
         'make_get_rs_type': make_get_rs_type,
@@ -440,7 +454,7 @@ def make_get_rs_type(idiomatic):
                 container_type = 'rosidl_runtime_rs::Sequence'
             return f'{container_type}<{get_rs_type(type_.value_type, current_idiomatic, desired_idiomatic)}>'
         elif isinstance(type_, BoundedSequence):
-            if isinstance(type_.value_type, BasicType):
+            if isinstance(type_.value_type, BasicType) and not (current_idiomatic and desired_idiomatic):
                 container_type = 'rosidl_runtime_rs::BoundedPrimitiveSequence'
             else:
                 container_type = 'rosidl_runtime_rs::BoundedSequence'
@@ -473,3 +487,83 @@ def make_get_rs_type(idiomatic):
     # Start out by assuming all calls have matching current and desired idiomatic values.
     # (i.e. symbols within the `...::rmw` scope want other values in the `...::rmw` scope).
     return lambda _type: get_rs_type(_type, idiomatic, idiomatic)
+
+
+def _message_path(type_, representation):
+    namespaces = list(type_.namespaces)
+    prefix = ('super::super' if representation == 'buffer' else 'super') if namespaces[0] == package_name else namespaces[0]
+    suffix = '' if representation == 'cpu' else f'::{representation}'
+    return f'{prefix}::{"::".join(namespaces[1:])}{suffix}::{type_.name}'
+
+
+def get_public_rs_type(type_, representation):
+    if representation == 'cpu':
+        return make_get_rs_type(True)(type_)
+    if isinstance(type_, NamespacedType):
+        return _message_path(type_, 'buffer')
+    if isinstance(type_, Array):
+        return f'[{get_public_rs_type(type_.value_type, representation)}; {type_.size}]'
+    if isinstance(type_, AbstractSequence):
+        element = get_public_rs_type(type_.value_type, representation)
+        if isinstance(type_.value_type, BasicType):
+            container = 'BoundedBuffer' if isinstance(type_, BoundedSequence) else 'Buffer'
+            container = f'rosidl_runtime_rs::{container}'
+        else:
+            container = 'rosidl_runtime_rs::BoundedVec' if isinstance(type_, BoundedSequence) else 'Vec'
+        bound = f', {type_.maximum_size}' if isinstance(type_, BoundedSequence) else ''
+        return f'{container}<{element}{bound}>'
+    return make_get_rs_type(True)(type_)
+
+
+def public_conversion(type_, expression, representation, direction, borrowed=False):
+    value = f'({expression})'
+    if isinstance(type_, BasicType):
+        return f'*{value}' if borrowed else expression
+    if isinstance(type_, NamespacedType):
+        path = _message_path(type_, representation)
+        if direction == 'from':
+            return f'{path}::from_rmw_message({expression})'
+        cow = 'Borrowed' if borrowed else 'Owned'
+        return f'{path}::into_rmw_message(std::borrow::Cow::{cow}({expression})).into_owned()'
+    if isinstance(type_, (UnboundedString, UnboundedWString)):
+        return f'{value}.to_string()' if direction == 'from' else f'{value}.as_str().into()'
+    if isinstance(type_, Array):
+        if isinstance(type_.value_type, BasicType):
+            return f'*{value}' if borrowed else expression
+        element = public_conversion(type_.value_type, 'element', representation, direction, borrowed)
+        if borrowed:
+            return f'{value}.iter().map(|element| {element}).collect::<Vec<_>>().try_into().expect("array length")'
+        return f'{value}.map(|element| {element})'
+    if isinstance(type_, AbstractSequence):
+        primitive = isinstance(type_.value_type, BasicType)
+        bounded = isinstance(type_, BoundedSequence)
+        if primitive:
+            if representation == 'buffer':
+                if direction == 'from':
+                    return f'{value}.into()'
+                if borrowed:
+                    return f'{value}.clone().into_sequence()' if bounded else f'{value}.as_sequence().clone()'
+                return f'{value}.into_sequence()'
+            if bounded:
+                return f'{value}.as_slice().try_into().expect("bounded sequence length")'
+            return f'{value}.into()' if direction == 'from' else f'{value}.as_slice().into()'
+        if bounded and representation == 'cpu':
+            return f'{value}.clone()' if borrowed else expression
+        element = public_conversion(type_.value_type, 'element', representation, direction, borrowed)
+        iterator = 'iter' if borrowed else 'into_iter'
+        result = f'{value}.{iterator}().map(|element| {element})'
+        if bounded and representation == 'buffer' and direction == 'from':
+            return f'{result}.collect::<Vec<_>>().try_into().expect("bounded sequence length")'
+        return f'{result}.collect()'
+    return f'{value}.clone()' if borrowed else expression
+
+
+def cpu_normalization(type_, expression):
+    if isinstance(type_, NamespacedType):
+        return f'{expression} = rosidl_runtime_rs::RmwMessage::try_into_cpu({expression})?;'
+    if isinstance(type_, AbstractSequence) and isinstance(type_.value_type, BasicType):
+        return f'{expression} = {expression}.try_into_cpu()?;'
+    if isinstance(type_, (Array, AbstractSequence)) and isinstance(type_.value_type, NamespacedType):
+        return (f'for element in {expression}.iter_mut() {{ '
+                '*element = rosidl_runtime_rs::RmwMessage::try_into_cpu(std::mem::take(element))?; }')
+    return ''
