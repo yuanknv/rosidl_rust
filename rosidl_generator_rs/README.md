@@ -1,3 +1,8 @@
+<!--
+Copyright 2026 Open Source Robotics Foundation, Inc.
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # rosidl_generator_rs
 
 Each IDL interface generates a CPU representation and an opt-in buffer
