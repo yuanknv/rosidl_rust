@@ -28,7 +28,8 @@ extern "C" {
     fn @(package_name)__@(subfolder)__@(type_name)__Sequence__copy(in_seq: &rosidl_runtime_rs::Sequence<@(type_name)>, out_seq: *mut rosidl_runtime_rs::Sequence<@(type_name)>) -> bool;
 }
 
-@# Rust field drops call the native field finalizers.
+@# Drop is not needed, since the default drop glue does the same as fini here:
+@# it just calls the drop/fini functions of all fields
 // Corresponds to @(package_name)__@(subfolder)__@(type_name)
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 
@@ -41,6 +42,7 @@ extern "C" {
 @[  end if]@
 @[end for]@
 @[if not comments]
+// This struct is not documented.
 #[allow(missing_docs)]
 @[end if]@
 
@@ -63,6 +65,7 @@ comments = getattr(member, 'get_comment_lines', lambda: [])()
 @[    end if]@
 @[  end for]@
 @[  if not comments]
+    // This member is not documented.
     #[allow(missing_docs)]
 @[  end if]@
     @(pre_field_serde(member.type))pub @(get_rs_name(member.name)): @(get_rs_type(member.type)),
@@ -84,6 +87,7 @@ comments = getattr(constant, 'get_comment_lines', lambda: [])()
 @[    end if]@
 @[  end for]@
 @[  if not comments]
+    // This constant is not documented.
     #[allow(missing_docs)]
 @[  end if]@
 @[  if isinstance(constant.type, BasicType)]@
