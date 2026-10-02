@@ -546,6 +546,8 @@ def public_conversion(type_, expression, representation, direction, borrowed=Fal
                 return f'{value}.into_sequence()'
             if bounded:
                 return f'{value}.as_slice().try_into().expect("bounded sequence length")'
+            # Primitive sequences use slice copies in both directions, avoiding the
+            # per-element read/zero-write of SequenceIterator. See ros2-rust/ros2_rust#628.
             return f'{value}.into()' if direction == 'from' else f'{value}.as_slice().into()'
         if bounded and representation == 'cpu':
             return f'{value}.clone()' if borrowed else expression

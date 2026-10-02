@@ -1,44 +1,92 @@
 @{
-from rosidl_parser.definition import AbstractGenericString, BasicType
+from rosidl_parser.definition import AbstractGenericString
+from rosidl_parser.definition import BasicType
 }@
+
+@# #################################################
+@# ############ Idiomatic message types ############
+@# #################################################
+@# These types use standard Rust containers where possible.
 @[for subfolder, msg_spec in msg_specs]@
 @{
 type_name = msg_spec.structure.namespaced_type.name
 package_path = "super::super" if representation == "buffer" else "super"
 }@
-@[for line in msg_spec.structure.get_comment_lines()]@
+
+// Corresponds to @(package_name)__@(subfolder)__@(type_name)
+@{comments = msg_spec.structure.get_comment_lines()}@
+@[for line in comments]@
+@[  if line]@
 /// @(line)
+@[  else]@
+///
+@[  end if]@
 @[end for]@
-#[allow(missing_docs, non_camel_case_types)]
+@[if not comments]
+// This struct is not documented.
+#[allow(missing_docs)]
+@[end if]@
+
+@# Leading underscores imply an unused symbol, skip it.
+@[if "_" in type_name[1:]]@
+#[allow(non_camel_case_types)]
+@[end if]@
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct @(type_name) {
 @[for member in msg_spec.structure.members]@
-@[for line in member.get_comment_lines()]@
+@{
+comments = member.get_comment_lines()
+}@
+@[  for line in comments]@
+@[    if line]@
     /// @(line)
-@[end for]@
+@[    else]@
+    ///
+@[    end if]@
+@[  end for]@
+@[  if not comments]
+    // This member is not documented.
+    #[allow(missing_docs)]
+@[  end if]@
     @(pre_field_serde(member.type))pub @(get_rs_name(member.name)): @(get_public_rs_type(member.type, representation)),
+
 @[end for]@
 }
 
 @[if msg_spec.constants]@
 impl @(type_name) {
 @[for constant in msg_spec.constants]@
-@[for line in getattr(constant, 'get_comment_lines', lambda: [])()]@
+@{
+comments = getattr(constant, 'get_comment_lines', lambda: [])()
+}@
+@[  for line in comments]@
+@[    if line]@
     /// @(line)
-@[end for]@
+@[    else]@
+    ///
+@[    end if]@
+@[  end for]@
+@[  if not comments]
+    // This constant is not documented.
     #[allow(missing_docs)]
-@[if isinstance(constant.type, BasicType)]@
+@[  end if]@
+@[  if isinstance(constant.type, BasicType)]@
     pub const @(get_rs_name(constant.name)): @(get_public_rs_type(constant.type, representation)) = @(constant_value_to_rs(constant.type, constant.value));
-@[elif isinstance(constant.type, AbstractGenericString)]@
+
+@[  elif isinstance(constant.type, AbstractGenericString)]@
     pub const @(get_rs_name(constant.name)): &'static str = @(constant_value_to_rs(constant.type, constant.value));
-@[end if]@
+
+@[  else]@
+@{assert False, 'Unhandled constant type: ' + str(constant.type)}@
+@[  end if]@
 @[end for]@
 }
-@[end if]@
+@[end if]
 
 impl Default for @(type_name) {
     fn default() -> Self {
+@#  This has the benefit of automatically setting the right default values
         <Self as rosidl_runtime_rs::Message>::from_rmw_message(Default::default())
     }
 }
