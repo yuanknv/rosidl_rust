@@ -15,7 +15,7 @@ TEMPLATE(
     constant_value_to_rs=constant_value_to_rs)
 }@
 
-@[if representation == 'cpu']@
+@[if representation == 'cpu' and buffer_enabled]@
 /// Backend-neutral buffer representation of the same ROS interfaces.
 pub mod buffer {
     #[allow(unused_imports)]

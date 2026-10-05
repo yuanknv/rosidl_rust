@@ -201,7 +201,7 @@ impl rosidl_runtime_rs::Action for @(type_name) {
 
 @[end for]
 
-@[if representation == 'cpu']@
+@[if representation == 'cpu' and buffer_enabled]@
 /// Backend-neutral buffer representation of the same ROS interfaces.
 pub mod buffer {
     #[allow(unused_imports)]
