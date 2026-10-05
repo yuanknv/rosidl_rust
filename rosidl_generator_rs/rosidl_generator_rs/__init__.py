@@ -59,6 +59,18 @@ else:
 
 package_name = ""
 
+
+def has_buffer_abi():
+    for prefix in os.environ.get('AMENT_PREFIX_PATH', '').split(os.pathsep):
+        if not prefix:
+            continue
+        for include in ('include/rosidl_runtime_c', 'include'):
+            header = Path(prefix) / include / 'rosidl_runtime_c/primitives_sequence.h'
+            if header.is_file():
+                return 'is_rosidl_buffer' in header.read_text()
+    return False
+
+
 # Taken from http://stackoverflow.com/a/6425628
 def convert_lower_case_underscore_to_camel_case(word):
     return ''.join(x.capitalize() or '_' for x in word.split('_'))
@@ -147,6 +159,9 @@ def _expand_namespace_templates(template_dir, output_dir, namespace, spec_kind, 
                 minimum_timestamp=latest_target_timestamp)
 
 
+    if not data['buffer_enabled']:
+        return
+
     buffer_data = namespace_data.copy()
     buffer_data['representation'] = 'buffer'
     rosidl_pycommon.expand_template(
@@ -203,11 +218,13 @@ def generate_rs(generator_arguments_file, typesupport_impls):
         assert os.path.exists(template_file), \
             'Template file %s not found' % template_file
 
+    buffer_enabled = has_buffer_abi()
     data = {
+        'buffer_enabled': buffer_enabled,
         'representation': 'cpu',
         'get_public_rs_type': get_public_rs_type,
         'public_conversion': public_conversion,
-        'cpu_normalization': cpu_normalization,
+        'cpu_normalization': cpu_normalization if buffer_enabled else lambda *_: '',
         'pre_field_serde': pre_field_serde,
         'get_rs_name': get_rs_name,
         'make_get_rs_type': make_get_rs_type,
@@ -274,6 +291,7 @@ def generate_rs(generator_arguments_file, typesupport_impls):
         minimum_timestamp=latest_target_timestamp)
 
     cargo_toml_data = {
+        'buffer_enabled': buffer_enabled,
         'dependency_packages': sorted(dependency_packages),
         'package_name': package_name,
         'package_version': args['package_version'],

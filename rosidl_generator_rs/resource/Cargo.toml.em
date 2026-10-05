@@ -4,7 +4,11 @@ version = "@(package_version)"
 edition = "2021"
 
 [dependencies]
+@[if buffer_enabled]@
+rosidl_runtime_rs = { version = "0.6", features = ["rosidl-buffer"] }
+@[else]@
 rosidl_runtime_rs = "0.6"
+@[end if]@
 serde = { version = "1", optional = true, features = ["derive"] }
 serde-big-array = { version = "0.5.1", optional = true }
 
