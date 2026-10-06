@@ -151,11 +151,13 @@ for member in msg_spec.structure.members:
     normalizations.append(cpu_normalization(member.type, 'self.' + get_rs_name(member.name)))
 }@
 @[if any(normalizations)]@
+  rosidl_runtime_rs::cfg_buffer! {
   fn try_into_cpu(mut self) -> Result<Self, rosidl_runtime_rs::BufferError> {
 @[for statement in normalizations]@
     @(statement)
 @[end for]@
     Ok(self)
+  }
   }
 @[end if]@
   const TYPE_NAME: &'static str = "@(package_name)/@(subfolder)/@(type_name)";
