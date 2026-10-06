@@ -202,10 +202,12 @@ impl rosidl_runtime_rs::Action for @(type_name) {
 @[end for]
 
 @[if representation == 'cpu' and buffer_enabled]@
+rosidl_runtime_rs::cfg_buffer! {
 /// Backend-neutral buffer representation of the same ROS interfaces.
 pub mod buffer {
     #[allow(unused_imports)]
     use super::*;
     include!("@(namespace)/buffer.rs");
+}
 }
 @[end if]@
