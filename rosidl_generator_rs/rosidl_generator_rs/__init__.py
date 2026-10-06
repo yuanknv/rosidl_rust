@@ -466,16 +466,11 @@ def make_get_rs_type(idiomatic):
         elif isinstance(type_, UnboundedSequence):
             if current_idiomatic and desired_idiomatic:
                 container_type = 'Vec'
-            elif isinstance(type_.value_type, BasicType):
-                container_type = 'rosidl_runtime_rs::PrimitiveSequence'
             else:
                 container_type = 'rosidl_runtime_rs::Sequence'
             return f'{container_type}<{get_rs_type(type_.value_type, current_idiomatic, desired_idiomatic)}>'
         elif isinstance(type_, BoundedSequence):
-            if isinstance(type_.value_type, BasicType) and not (current_idiomatic and desired_idiomatic):
-                container_type = 'rosidl_runtime_rs::BoundedPrimitiveSequence'
-            else:
-                container_type = 'rosidl_runtime_rs::BoundedSequence'
+            container_type = 'rosidl_runtime_rs::BoundedSequence'
             return f'{container_type}<{get_rs_type(type_.value_type, current_idiomatic, False)}, {type_.maximum_size}>'
         elif isinstance(type_, NamespacedType):
             # All types should be referencable like this
@@ -560,8 +555,8 @@ def public_conversion(type_, expression, representation, direction, borrowed=Fal
                 if direction == 'from':
                     return f'{value}.into()'
                 if borrowed:
-                    return f'{value}.clone().into_sequence()' if bounded else f'{value}.as_sequence().clone()'
-                return f'{value}.into_sequence()'
+                    return f'{value}.clone().into_sequence().into()' if bounded else f'{value}.as_sequence().clone().into()'
+                return f'{value}.into_sequence().into()'
             if bounded:
                 return f'{value}.as_slice().try_into().expect("bounded sequence length")'
             # Primitive sequences use slice copies in both directions, avoiding the
