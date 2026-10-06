@@ -35,10 +35,10 @@ class SequenceMappingTest(unittest.TestCase):
             with self.subTest(type=name):
                 element = BasicType(name)
                 self.assertEqual(native(UnboundedSequence(element)),
-                                 f'rosidl_runtime_rs::PrimitiveSequence<{rust}>')
+                                 f'rosidl_runtime_rs::Sequence<{rust}>')
                 self.assertEqual(idiomatic(UnboundedSequence(element)), f'Vec<{rust}>')
                 self.assertEqual(native(BoundedSequence(element, 8)),
-                                 f'rosidl_runtime_rs::BoundedPrimitiveSequence<{rust}, 8>')
+                                 f'rosidl_runtime_rs::BoundedSequence<{rust}, 8>')
                 self.assertEqual(native(Array(element, 8)), f'[{rust}; 8]')
                 self.assertEqual(idiomatic(BoundedSequence(element, 8)),
                                  f'rosidl_runtime_rs::BoundedSequence<{rust}, 8>')
