@@ -509,6 +509,13 @@ def _message_path(type_, representation):
     return f'{prefix}::{"::".join(namespaces[1:])}{suffix}::{type_.name}'
 
 
+def is_buffer_field(type_):
+    # Match the native typesupport's rosidl::Buffer field mapping.
+    return (isinstance(type_, UnboundedSequence) and
+            isinstance(type_.value_type, BasicType) and
+            type_.value_type.typename == 'uint8')
+
+
 def get_public_rs_type(type_, representation):
     if representation == 'cpu':
         return make_get_rs_type(True)(type_)
@@ -518,9 +525,8 @@ def get_public_rs_type(type_, representation):
         return f'[{get_public_rs_type(type_.value_type, representation)}; {type_.size}]'
     if isinstance(type_, AbstractSequence):
         element = get_public_rs_type(type_.value_type, representation)
-        if isinstance(type_.value_type, BasicType):
-            container = 'BoundedBuffer' if isinstance(type_, BoundedSequence) else 'Buffer'
-            container = f'rosidl_runtime_rs::{container}'
+        if is_buffer_field(type_):
+            container = 'rosidl_runtime_rs::Buffer'
         else:
             container = 'rosidl_runtime_rs::BoundedVec' if isinstance(type_, BoundedSequence) else 'Vec'
         bound = f', {type_.maximum_size}' if isinstance(type_, BoundedSequence) else ''
@@ -551,13 +557,17 @@ def public_conversion(type_, expression, representation, direction, borrowed=Fal
         primitive = isinstance(type_.value_type, BasicType)
         bounded = isinstance(type_, BoundedSequence)
         if primitive:
-            if representation == 'buffer':
+            if representation == 'buffer' and is_buffer_field(type_):
                 if direction == 'from':
                     return f'{value}.into()'
                 if borrowed:
-                    return f'{value}.clone().into_sequence().into()' if bounded else f'{value}.as_sequence().clone().into()'
+                    return f'{value}.as_sequence().clone().into()'
                 return f'{value}.into_sequence().into()'
             if bounded:
+                if representation == 'buffer':
+                    source = (f'{value}.as_slice().to_vec()' if direction == 'from'
+                              else f'(&{value}[..])')
+                    return f'{source}.try_into().expect("bounded sequence length")'
                 return f'{value}.as_slice().try_into().expect("bounded sequence length")'
             # Primitive sequences use slice copies in both directions, avoiding the
             # per-element read/zero-write of SequenceIterator. See ros2-rust/ros2_rust#628.
