@@ -1,6 +1,14 @@
 @{
 from rosidl_parser.definition import AbstractGenericString
+from rosidl_parser.definition import Array
 from rosidl_parser.definition import BasicType
+from rosidl_parser.definition import BoundedSequence
+from rosidl_parser.definition import BoundedString
+from rosidl_parser.definition import NamedType
+from rosidl_parser.definition import NamespacedType
+from rosidl_parser.definition import UnboundedSequence
+from rosidl_parser.definition import UnboundedString
+from rosidl_parser.definition import UnboundedWString
 }@
 
 @# #################################################
@@ -72,7 +80,7 @@ comments = getattr(constant, 'get_comment_lines', lambda: [])()
     #[allow(missing_docs)]
 @[  end if]@
 @[  if isinstance(constant.type, BasicType)]@
-    pub const @(get_rs_name(constant.name)): @(get_public_rs_type(constant.type, representation)) = @(constant_value_to_rs(constant.type, constant.value));
+    pub const @(get_rs_name(constant.name)): @(get_rs_type(constant.type)) = @(constant_value_to_rs(constant.type, constant.value));
 
 @[  elif isinstance(constant.type, AbstractGenericString)]@
     pub const @(get_rs_name(constant.name)): &'static str = @(constant_value_to_rs(constant.type, constant.value));
@@ -85,44 +93,213 @@ comments = getattr(constant, 'get_comment_lines', lambda: [])()
 @[end if]
 
 impl Default for @(type_name) {
-    fn default() -> Self {
+  fn default() -> Self {
 @#  This has the benefit of automatically setting the right default values
-        <Self as rosidl_runtime_rs::Message>::from_rmw_message(Default::default())
-    }
+    <Self as rosidl_runtime_rs::Message>::from_rmw_message(@(package_path)::@(subfolder)::rmw::@(type_name)::default())
+  }
 }
 
 impl rosidl_runtime_rs::Message for @(type_name) {
-    type RmwMsg = @(package_path)::@(subfolder)::rmw::@(type_name);
+  type RmwMsg = @(package_path)::@(subfolder)::rmw::@(type_name);
 
-    fn into_rmw_message(msg_cow: std::borrow::Cow<'_, Self>) -> std::borrow::Cow<'_, Self::RmwMsg> {
-        match msg_cow {
-            std::borrow::Cow::Owned(msg) => std::borrow::Cow::Owned(Self::RmwMsg {
+  fn into_rmw_message(msg_cow: std::borrow::Cow<'_, Self>) -> std::borrow::Cow<'_, Self::RmwMsg> {
+    match msg_cow {
+      std::borrow::Cow::Owned(msg) => std::borrow::Cow::Owned(Self::RmwMsg {
 @[for member in msg_spec.structure.members]@
-                @(get_rs_name(member.name)): @(public_conversion(member.type, 'msg.' + get_rs_name(member.name), representation, 'to')),
+@#
+@#
+@#    == Array ==
+@[    if representation == 'buffer']@
+        @(get_rs_name(member.name)): @(public_conversion(member.type, 'msg.' + get_rs_name(member.name), representation, 'to')),
+@[    elif isinstance(member.type, Array)]@
+@[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .map(|elem| elem.as_str().into()),
+@[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .map(|elem| @(get_rs_type(member.type.value_type))::into_rmw_message(std::borrow::Cow::Owned(elem)).into_owned()),
+@[        elif isinstance(member.type.value_type, BasicType)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
+@[        else]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).clone(),
+@[        end if]@
+@#
+@#
+@#    == UnboundedString + UnboundedWString ==
+@[    elif isinstance(member.type, UnboundedString) or isinstance(member.type, UnboundedWString)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).as_str().into(),
+@#
+@#
+@#    == UnboundedSequence ==
+@[    elif isinstance(member.type, UnboundedSequence)]@
+@[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .into_iter()
+          .map(|elem| elem.as_str().into())
+          .collect(),
+@[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .into_iter()
+          .map(|elem| @(get_rs_type(member.type.value_type))::into_rmw_message(std::borrow::Cow::Owned(elem)).into_owned())
+          .collect(),
+@# Owned BasicType sequences: borrow the slice and route through
+@# From<&[T]> for Sequence<T> so the copy compiles to a memcpy via
+@# clone_from_slice's Copy specialization, instead of From<Vec<T>>'s
+@# per-element extend path. See ros2-rust/ros2_rust#628.
+@[        else]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).as_slice().into(),
+@[        end if]@
+@#
+@#
+@#    == NamedType + NamespacedType ==
+@[    elif isinstance(member.type, NamedType) or isinstance(member.type, NamespacedType)]@
+        @(get_rs_name(member.name)): @(get_rs_type(member.type))::into_rmw_message(std::borrow::Cow::Owned(msg.@(get_rs_name(member.name)))).into_owned(),
+@#
+@#
+@#    == Bounded and basic types ==
+@[    else]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
+@[    end if]@
 @[end for]@
-            }),
-            std::borrow::Cow::Borrowed(msg) => std::borrow::Cow::Owned(Self::RmwMsg {
+      }),
+      std::borrow::Cow::Borrowed(msg) => std::borrow::Cow::Owned(Self::RmwMsg {
 @[for member in msg_spec.structure.members]@
-                @(get_rs_name(member.name)): @(public_conversion(member.type, '&msg.' + get_rs_name(member.name), representation, 'to', True)),
+@#
+@#
+@#    == Array ==
+@[    if representation == 'buffer']@
+        @(get_rs_name(member.name)): @(public_conversion(member.type, '&msg.' + get_rs_name(member.name), representation, 'to', True)),
+@[    elif isinstance(member.type, Array)]@
+@[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .iter()
+          .map(|elem| elem.as_str().into())
+          .collect::<Vec<_>>()
+          .try_into()
+          .unwrap(),
+@[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .iter()
+          .map(|elem| @(get_rs_type(member.type.value_type))::into_rmw_message(std::borrow::Cow::Borrowed(elem)).into_owned())
+          .collect::<Vec<_>>()
+          .try_into()
+          .unwrap(),
+@[        elif isinstance(member.type.value_type, BasicType)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
+@[        else]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).clone(),
+@[        end if]@
+@#
+@#
+@#    == UnboundedString + UnboundedWString ==
+@[    elif isinstance(member.type, UnboundedString) or isinstance(member.type, UnboundedWString)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).as_str().into(),
+@#
+@#
+@#    == UnboundedSequence ==
+@[    elif isinstance(member.type, UnboundedSequence)]@
+@[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .iter()
+          .map(|elem| elem.as_str().into())
+          .collect(),
+@[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .iter()
+          .map(|elem| @(get_rs_type(member.type.value_type))::into_rmw_message(std::borrow::Cow::Borrowed(elem)).into_owned())
+          .collect(),
+@[        else]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).as_slice().into(),
+@[        end if]@
+@#
+@#
+@#    == NamedType + NamespacedType ==
+@[    elif isinstance(member.type, NamedType) or isinstance(member.type, NamespacedType)]@
+        @(get_rs_name(member.name)): @(get_rs_type(member.type))::into_rmw_message(std::borrow::Cow::Borrowed(&msg.@(get_rs_name(member.name)))).into_owned(),
+@#
+@#
+@#    == BasicType ==
+@[    elif isinstance(member.type, BasicType)]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
+@#
+@#
+@#    == Bounded types ==
+@[    else]@
+        @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).clone(),
+@[    end if]@
 @[end for]@
-            }),
-        }
+      })
     }
+  }
 
-    fn from_rmw_message(msg: Self::RmwMsg) -> Self {
-        Self::try_from_rmw_message(msg).expect("message conversion failed")
-    }
+  fn from_rmw_message(msg: Self::RmwMsg) -> Self {
+    Self::try_from_rmw_message(msg).expect("message conversion failed")
+  }
 
-    fn try_from_rmw_message(msg: Self::RmwMsg) -> Result<Self, rosidl_runtime_rs::BufferError> {
+  fn try_from_rmw_message(msg: Self::RmwMsg) -> Result<Self, rosidl_runtime_rs::BufferError> {
 @[if representation == 'cpu']@
-        let msg = rosidl_runtime_rs::RmwMessage::try_into_cpu(msg)?;
+    let msg = rosidl_runtime_rs::RmwMessage::try_into_cpu(msg)?;
 @[end if]@
-        Ok(Self {
+    Ok(Self {
 @[for member in msg_spec.structure.members]@
-            @(get_rs_name(member.name)): @(public_conversion(member.type, 'msg.' + get_rs_name(member.name), representation, 'from')),
+@#
+@#
+@#    == Array ==
+@[    if representation == 'buffer']@
+      @(get_rs_name(member.name)): @(public_conversion(member.type, 'msg.' + get_rs_name(member.name), representation, 'from')),
+@[    elif isinstance(member.type, Array)]@
+@[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+        .map(|elem| elem.to_string()),
+@[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+        .map(@(get_rs_type(member.type.value_type))::from_rmw_message),
+@[        else]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
+@[        end if]@
+@#
+@#
+@#    == UnboundedSequence ==
+@[    elif isinstance(member.type, UnboundedSequence)]@
+@# Primitive sequences use the From<Sequence<T>> for Vec<T> impl (memcpy via
+@# as_slice().to_vec()), avoiding O(n) per-element read/zero-write that the
+@# SequenceIterator path performs. See ros2-rust/ros2_rust#628.
+@[        if isinstance(member.type.value_type, BasicType)]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).into(),
+@[        elif isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .into_iter()
+          .map(|elem| elem.to_string())
+          .collect(),
+@[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .into_iter()
+          .map(@(get_rs_type(member.type.value_type))::from_rmw_message)
+          .collect(),
+@[        else]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
+          .into_iter()
+          .collect(),
+@[        end if]@
+@#
+@#
+@#    == UnboundedString + UnboundedWString ==
+@[    elif isinstance(member.type, UnboundedString) or isinstance(member.type, UnboundedWString)]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).to_string(),
+@#
+@#
+@#    == NamedType + NamespacedType ==
+@[    elif isinstance(member.type, NamedType) or isinstance(member.type, NamespacedType)]@
+      @(get_rs_name(member.name)): @(get_rs_type(member.type))::from_rmw_message(msg.@(get_rs_name(member.name))),
+@#
+@#
+@#    == Bounded and basic types ==
+@[    else]@
+      @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
+@[    end if]@
 @[end for]@
-        })
-    }
+    })
+  }
 }
 
 @[if representation == 'buffer']@
