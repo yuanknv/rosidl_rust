@@ -524,9 +524,9 @@ def get_public_rs_type(type_, representation):
     if isinstance(type_, AbstractSequence):
         element = get_public_rs_type(type_.value_type, representation)
         if is_buffer_field(type_):
-            container = 'rosidl_runtime_rs::Buffer'
+            container = 'rosidl_buffer_rs::Buffer'
         else:
-            container = 'rosidl_runtime_rs::BoundedVec' if isinstance(type_, BoundedSequence) else 'Vec'
+            container = 'rosidl_buffer_rs::BoundedVec' if isinstance(type_, BoundedSequence) else 'Vec'
         bound = f', {type_.maximum_size}' if isinstance(type_, BoundedSequence) else ''
         return f'{container}<{element}{bound}>'
     return make_get_rs_type(True)(type_)

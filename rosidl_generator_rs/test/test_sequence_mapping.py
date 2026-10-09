@@ -43,10 +43,10 @@ class SequenceMappingTest(unittest.TestCase):
                 self.assertEqual(idiomatic(BoundedSequence(element, 8)),
                                  f'rosidl_runtime_rs::BoundedSequence<{rust}, 8>')
                 self.assertEqual(get_public_rs_type(UnboundedSequence(element), 'buffer'),
-                                 'rosidl_runtime_rs::Buffer<u8>' if name == 'uint8'
+                                 'rosidl_buffer_rs::Buffer<u8>' if name == 'uint8'
                                  else f'Vec<{rust}>')
                 self.assertEqual(get_public_rs_type(BoundedSequence(element, 8), 'buffer'),
-                                 f'rosidl_runtime_rs::BoundedVec<{rust}, 8>')
+                                 f'rosidl_buffer_rs::BoundedVec<{rust}, 8>')
 
     def test_string_and_message_sequences(self):
         native = make_get_rs_type(False)
@@ -68,7 +68,7 @@ class SequenceMappingTest(unittest.TestCase):
         self.assertEqual(get_public_rs_type(UnboundedSequence(element), 'buffer'),
                          'Vec<other::msg::buffer::Image>')
         self.assertEqual(get_public_rs_type(BoundedSequence(element, 3), 'buffer'),
-                         'rosidl_runtime_rs::BoundedVec<other::msg::buffer::Image, 3>')
+                         'rosidl_buffer_rs::BoundedVec<other::msg::buffer::Image, 3>')
         self.assertEqual(get_public_rs_type(Array(element, 3), 'buffer'),
                          '[other::msg::buffer::Image; 3]')
 
