@@ -117,8 +117,6 @@ impl Default for @(type_name) {
 }
 
 impl rosidl_runtime_rs::SequenceAlloc for @(type_name) {
-  type SequenceMetadata = ();
-
   fn sequence_init(seq: &mut rosidl_runtime_rs::Sequence<Self>, size: usize) -> bool {
     // SAFETY: This is safe since the pointer is guaranteed to be valid/initialized.
     unsafe { @(package_name)__@(subfolder)__@(type_name)__Sequence__init(seq as *mut _, size) }

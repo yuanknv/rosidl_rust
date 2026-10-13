@@ -18,6 +18,7 @@ TEMPLATE(
 @[if representation == 'cpu' and buffer_enabled]@
 rosidl_runtime_rs::cfg_buffer! {
 /// Backend-neutral buffer representation of the same ROS interfaces.
+#[cfg(feature = "rosidl-buffer")]
 pub mod buffer {
     #[allow(unused_imports)]
     use super::*;
